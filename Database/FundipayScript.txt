@@ -1,0 +1,603 @@
+USE FundiPay
+GO
+
+CREATE TABLE [dbo].[Contact]
+(
+ [ContactId] INT IDENTITY (1,1) NOT NULL,
+ [MobileNumber] NVARCHAR(64) NOT NULL,
+ [Email] NVARCHAR(64) NULL,
+ CONSTRAINT [PK_Contacts_ContactId] PRIMARY KEY([ContactId]),
+ CONSTRAINT [CK_Contacts_MobileNumber] CHECK(LEN([MobileNumber])<>(0)),
+)
+
+GO
+
+CREATE PROCEDURE [dbo].[CreateContact]
+(
+ @MobileNumber NVARCHAR(64),
+ @Email NVARCHAR(64)=NULL
+  )
+AS
+ BEGIN
+ DECLARE @ContactRecord TABLE ([ContactId] INT);
+
+ INSERT INTO [dbo].[Contact]([MobileNumber],[Email])
+ OUTPUT [INSERTED].[ContactId]
+ VALUES(@MobileNumber,@Email)
+
+ SELECT [ContactId] FROM @ContactRecord
+ END;
+ GO
+CREATE TABLE [dbo].[UserLogin]
+(
+ [UserId] INT IDENTITY(1,1) NOT NULL,
+ [UserName] NVARCHAR(64) NOT NULL,
+ [Password] NVARCHAR(54) NOT NULL,
+ CONSTRAINT[PK_Userlogin_UserId] PRIMARY KEY( [UserId]),
+ CONSTRAINT[CK_Userlogin_UserName] CHECK (LEN([UserName])<>(0)),
+ CONSTRAINT[CK_Userlogin_Password] CHECK (LEN([Password])<>(0)),
+)
+GO
+INSERT INTO [dbo].[UserLogin] VALUES('Crown','Ndlala'),('Miehleketo','ndlala'),('Nyeleti','Ndlala'),('Angulo','NDLALA')
+
+CREATE PROCEDURE [dbo].[Get_Users]
+
+ @UserName NVARCHAR(64),
+ @Password NVARCHAR(54)
+
+AS
+BEGIN
+ SELECT UserId FROM[dbo].[UserLogin]
+ WHERE [UserName] = @UserName
+ AND
+      [Password] = @Password 
+END
+ CREATE TABLE [dbo].[Card]
+ (
+
+  CardId INT IDENTITY(1,1) NOT NULL,
+  ContactId INT NOT NULL,
+  CardNumber NVARCHAR(64) NOT NULL,
+  Pin NVARCHAR(64) NOT NULL,
+  CONSTRAINT [PK_Card_CardId] PRIMARY KEY ([CardId]),
+  CONSTRAINT [FK_Card_Contact_ContactId] FOREIGN KEY ([ContactId]) REFERENCES [dbo].[Contact] ([ContactId]),
+
+ )
+ GO
+
+ CREATE PROCEDURE [dbo].[CreateCard]
+ (
+  @ContactId INT,
+  @CardNumber NVARCHAR(64),
+  @Pin NVARCHAR(64)
+ )
+ AS
+ BEGIN
+
+ DECLARE @CreateCardRecord TABLE ([CardId] INT);
+ 
+ INSERT INTO [dbo].[CreateCard]([ContactId],[CardNumber],[Pin])
+ OUTPUT [INSERTED].[CardId]
+ VALUES(@ContactId,@CardNumber,@Pin)
+
+ SELECT [CardId] FROM @CreateCardRecord
+ 
+
+ END
+ GO
+
+ CREATE TABLE [dbo].[Transaction]
+ (
+  TransactionId INT IDENTITY(1,1) NOT NULL,
+  CardId INT NOT NULL,
+  Amount DECIMAL(19,2) NOT NULL,
+  Reference NVARCHAR(64) NOT NULL,
+  TransactionDate DATETIME NOT NULL,
+  CONSTRAINT[PK_Transaction_TransactionId] PRIMARY KEY([TransactionId]),
+  CONSTRAINT [FK_Transaction_Card_CardId] FOREIGN KEY([CardId]) REFERENCES [dbo].[Card] ([CardId]),
+  CONSTRAINT [CK_Transaction_Amount] CHECK (LEN([Amount])<>(0)),
+  CONSTRAINT [CK_Transaction_Reference] CHECK (LEN([Reference])<>(0)),
+
+ )
+ GO
+
+CREATE PROCEDURE [dbo].[CreateTransaction]
+ (
+  @CardId INT ,
+  @Amount NVARCHAR(64),
+  @Reference DECIMAL(18,2),
+  @TransactionDate DATETIME
+ )
+ AS
+ 
+ INSERT INTO [dbo].[CreateTransaction] ([CardId],[Amount],[Reference],[TransactionDate])
+ VALUES (@CardId,@amount,@Reference,@TransactionDate)
+
+ GO
+
+CREATE TABLE [dbo].[AvailableCard]
+( 
+  AvailableCardId INT IDENTITY(1,1) NOT NULL,
+  CardNumber NVARCHAR(64) NOT NULL,
+  Issued INT NOT NULL,
+  CONSTRAINT [PK_AvailableCard_AvailableCardId] PRIMARY KEY([AvailableCardId]),
+  CONSTRAINT [CK_AvailableCard_CardNumber] CHECK (LEN([CardNumber])<>(0)),
+
+ )
+
+ 
+ GO
+ 
+ ALTER PROCEDURE [dbo].[MarkCardAsIssued]
+ (
+  @CardNumber NVARCHAR(64)
+
+ )
+ AS
+ 
+ UPDATE [dbo].[AvailableCard]
+ SET [Issued] = 1
+ WHERE [CardNumber] =@CardNumber
+ 
+ GO
+
+ CREATE PROCEDURE [dbo].[RetrieveAvailableCard]
+ 
+ AS
+ SELECT [AvailableCardId],[CardNumber]
+ FROM [dbo].[AvailableCard]
+ WHERE [Issued]=0
+
+ DECLARE	@return_value int
+
+EXEC	@return_value = [dbo].[RetrieveAvailableCard]
+
+SELECT	'Return Value' = @return_value
+ 
+ ALTER PROCEDURE [dbo].[AddCard]
+(
+ @ContactId INT,
+ @CardNumber NVARCHAR(64),
+ @Pin NVARCHAR(64)
+)
+AS
+
+DECLARE @CardRecord TABLE ([CardId] INT)
+
+INSERT INTO [dbo].[Card] (ContactId,CardNumber,Pin)
+OUTPUT [inserted].[CardId]
+VALUES (@ContactId,@CardNumber, @Pin)
+
+SELECT [CardId] FROM @CardRecord
+
+INSERT INTO [dbo].[Transaction] ([CardId],[Amount],[Reference],[TransactionDate])
+VALUES (@CardId,@Amount,@Reference,@TransactionDate)
+
+ALTER PROCEDURE [dbo].[CreateContact]
+(
+	@CellPhone NVARCHAR(64),
+	@Email NVARCHAR(64) = NULL
+)
+
+AS
+
+	DECLARE @ContactRecord TABLE ([ContactId] INT)
+
+	INSERT INTO [dbo].[Contact] (CellPhone,Email) 
+	OUTPUT [inserted].[ContactId]
+	VALUES(@CellPhone,@Email)
+
+
+	SELECT [ContactId] FROM @ContactRecord
+
+
+
+	alter table [dbo].[Transaction]
+	add Amount decimal(18,2)
+
+CREATE PROCEDURE [dbo].[MarkCardAsIssued]
+(
+	@CardNumber NVARCHAR(64)
+)
+AS
+	UPDATE [dbo].[AvailableCard]
+	SET [Issued] = 1
+	WHERE [CardNumber] = @CardNumber
+
+	CREATE TABLE [dbo].[Person]
+(
+[PersonId] INT IDENTITY(1,1) NOT NULL,
+[FirstName] NVARCHAR(60) NOT NULL,
+[Surname] NVARCHAR(60) NOT NULL,
+[DateOfBirth] DATETIME NOT NULL,
+[Age] INT NOT NULL,
+CONSTRAINT[PK_Person_PersonId] PRIMARY KEY([PersonId]),
+CONSTRAINT[CK_Person_FirstName] CHECK(LEN([FirstName])<>(0)),
+CONSTRAINT[CK_Person_Surname] CHECK(LEN([Surname])<>(0))
+)
+
+INSERT INTO [dbo].[Person] VALUES ('Crown','Ndlala',getdate(),30),('Sakhile','baloyi',getdate(),30),('Madodo','Bvuma',getdate(),30),('Hlekani','Sabela',getdate(),30),('Akhisizwa','Sidodi',getdate(),30),('Precious','Lolwane',getdate(),30),('Mamphala','Kgatla',getdate(),30),('Kgomotso','Mkharrhi',getdate(),30),('Wilson','Mnkasi',getdate(),30),('Excellent','Nkomo',getdate(),30),('Jerry','Mathebula',getdate(),30),('Julius','Siwape',getdate(),30),('Sharon','Mabunda',getdate(),30),('Terry','Ngobeni',getdate(),30),('Success','Ndobeni',getdate(),30),('Leon','Nkuna',getdate(),30),('Fourie','Bvuma',getdate(),30),('Clive','Baloyi',getdate(),30),('Madala','Mahlawule',getdate(),30),('Region','Mkansi',getdate(),30),('Sonnyboy','makhubele',getdate(),30),('Raymond','Mdaka',getdate(),30)
+
+---Works in SQL 2017 for paging,Filtering and sorting
+CREATE PROCEDURE [dbo].[Person]
+(
+	@SearchValue NVARCHAR(50) = NULL,
+	@PageNumber INT = 1,
+	@PageSize INT = 10,
+	@SortColumn NVARCHAR(20) = 'FirstName',
+	@SortOrder NVARCHAR(20) = 'ASC'
+)
+ AS BEGIN
+ SET NOCOUNT ON;
+
+ SET @SearchValue = LTRIM(RTRIM(@SearchValue))
+
+ ;WITH CTE_Results AS 
+(
+    SELECT PersonId, FirstName, Surname,DateOfBirth,Age FROM [dbo].[Person] 
+	WHERE (@SearchValue IS NULL OR FirstName LIKE '%' + @SearchValue + '%') 
+	 	    ORDER BY
+   	 CASE WHEN (@SortColumn = 'FirstName' AND @SortOrder='ASC')
+                    THEN FirstName
+        END ASC,
+        CASE WHEN (@SortColumn = 'FirstName' AND @SortOrder='DESC')
+                   THEN FirstName
+		END DESC,
+	 CASE WHEN (@SortColumn = 'Surname' AND @SortOrder='ASC')
+                    THEN Surname
+        END ASC,
+        CASE WHEN (@SortColumn = 'Surname' AND @SortOrder='DESC')
+                   THEN Surname
+				   END DESC,
+	 CASE WHEN (@SortColumn = 'DateOfBirth' AND @SortOrder='ASC')
+                    THEN DateOfBirth
+        END ASC,
+        CASE WHEN (@SortColumn = 'DateOfBirth' AND @SortOrder='DESC')
+                   THEN DateOfBirth
+				   			   END DESC,
+	 CASE WHEN (@SortColumn = 'Age' AND @SortOrder='ASC')
+                    THEN Age
+        END ASC,
+        CASE WHEN (@SortColumn = 'Age' AND @SortOrder='DESC')
+                   THEN Age
+		END DESC 
+      OFFSET @PageSize * (@PageNo - 1) ROWS
+      FETCH NEXT @PageSize ROWS ONLY
+	),
+CTE_TotalRows AS 
+(
+ SELECT COUNT(PersonId) AS MaxRows FROM [dbo].[Person] WHERE (@SearchValue IS NULL OR FirstName LIKE '%' + @SearchValue + '%')
+)
+   SELECT MaxRows, t.PersonId, t.FirstName,t.Surname t.DateOfBirth,t.Age FROM [dbo].[Person] AS t, CTE_TotalRows 
+   WHERE EXISTS (SELECT 1 FROM CTE_Results WHERE CTE_Results.PersonId = t.PersonId)
+   OPTION (RECOMPILE)
+   END
+GO
+---Works in SQL 2017
+
+SELECT [PersonId],[FirstName],[Surname],[DateOfBirth],[Age] FROM [dbo].[Person]
+ORDER BY [FirstName]
+OFFSET 5 ROWS
+FETCH NEXT 10 ROWS ONLY
+
+---Works in SQL 2017
+
+SELECT
+  PersonId,FirstName,Surname,Age 
+FROM [dbo].[Person]
+ ORDER BY PersonId
+  OFFSET (@PageNo - 1) * @RowCountPerPage ROWS
+  FETCH NEXT @RowCountPerPage ROWS ONLY
+
+
+  ----WORKING IN SQL LESS 2012
+  
+
+DECLARE @PageNum AS INT;
+DECLARE @PageSize AS INT;
+SET @PageNum = 8;
+SET @PageSize = 10;
+
+IF @PageNum = 1 
+  BEGIN 
+        WITH Persons AS
+(
+    SELECT ROW_NUMBER() OVER(ORDER BY FirstName ASC) AS RowNum
+          ,PersonId
+          ,FirstName
+          ,Surname
+          ,DateOfBirth 
+      FROM [dbo].[Person]
+)
+   
+      SELECT * 
+  FROM Persons
+ WHERE RowNum BETWEEN (@PageNum - 1) * @PageSize AND @PageNum * @PageSize 
+ ORDER BY FirstName
+ 
+  END 
+ELSE 
+  BEGIN 
+      
+        WITH Persons AS
+(
+    SELECT ROW_NUMBER() OVER(ORDER BY FirstName ASC) AS RowNum
+          ,PersonId
+          ,FirstName
+          ,Surname
+          ,DateOfBirth 
+      FROM [dbo].[Person]
+)
+   
+  SELECT * 
+  FROM Persons
+ WHERE RowNum BETWEEN (@PageNum - 1) * @PageSize + 1 AND @PageNum * @PageSize 
+ ORDER BY FirstName
+
+END
+GO
+WITH Persons AS
+(
+    SELECT ROW_NUMBER() OVER(ORDER BY FirstName ASC) AS RowNum
+          ,PersonId
+          ,FirstName
+          ,Surname
+          ,DateOfBirth 
+      FROM [dbo].[Person]
+)
+  SELECT * 
+  FROM Persons
+ WHERE RowNum BETWEEN (@PageNum - 1) * @PageSize + 1 AND @PageNum * @PageSize 
+ ORDER BY FirstName
+  
+CREATE PROCEDURE [dbo].[Get_Persons]
+(
+@PageNumber  INT = 1,
+@PageSize INT = 10
+)
+AS 
+BEGIN
+
+IF @PageNumber = 1 
+  BEGIN 
+        WITH Persons AS
+(
+    SELECT ROW_NUMBER() OVER(ORDER BY FirstName ASC) AS RowNumber
+          ,PersonId
+          ,FirstName
+          ,Surname
+          ,DateOfBirth 
+      FROM [dbo].[Person]
+)
+   
+      SELECT * 
+  FROM Persons
+ WHERE RowNumber BETWEEN (@PageNumber - 1) * @PageSize AND @PageNumber * @PageSize 
+ ORDER BY FirstName
+ 
+  END 
+ELSE 
+  BEGIN 
+      
+        WITH Persons AS
+(
+    SELECT ROW_NUMBER() OVER(ORDER BY FirstName ASC) AS RowNumber
+          ,PersonId
+          ,FirstName
+          ,Surname
+          ,DateOfBirth 
+      FROM [dbo].[Person]
+)
+   
+  SELECT * 
+  FROM Persons
+ WHERE RowNumber BETWEEN (@PageNumber - 1) * @PageSize + 1 AND @PageNumber * @PageSize 
+ ORDER BY FirstName
+
+END
+END
+GO
+
+CREATE PROCEDURE [dbo].[Get_Persons]
+(
+@PageNumber  INT = 1,
+@PageSize INT = 10
+)
+AS 
+BEGIN
+
+IF @PageNumber = 1 
+  BEGIN 
+        WITH Persons AS
+(
+    SELECT ROW_NUMBER() OVER(ORDER BY FirstName ASC) AS RowNumber
+          ,PersonId
+          ,FirstName
+          ,Surname
+          ,DateOfBirth 
+      FROM [dbo].[Person]
+)
+   
+      SELECT * 
+  FROM Persons
+ WHERE RowNumber BETWEEN (@PageNumber - 1) * @PageSize AND @PageNumber * @PageSize 
+ ORDER BY FirstName
+ 
+  END 
+ELSE 
+  BEGIN 
+      
+        WITH Persons AS
+(
+    SELECT ROW_NUMBER() OVER(ORDER BY FirstName ASC) AS RowNumber
+          ,PersonId
+          ,FirstName
+          ,Surname
+          ,DateOfBirth 
+      FROM [dbo].[Person]
+)
+   
+  SELECT * 
+  FROM Persons
+ WHERE RowNumber BETWEEN (@PageNumber - 1) * @PageSize + 1 AND @PageNumber * @PageSize 
+ ORDER BY FirstName
+
+END
+END
+GO
+
+CREATE PROCEDURE [dbo].[Get_Persons]
+(
+@PageNumber  INT = 1,
+@PageSize INT = 10
+)
+AS 
+BEGIN
+
+IF @PageNumber = 1 
+  BEGIN 
+        WITH Persons AS
+(
+    SELECT ROW_NUMBER() OVER(ORDER BY FirstName ASC) AS RowNumber
+          ,PersonId
+          ,FirstName
+          ,Surname
+          ,DateOfBirth 
+      FROM [dbo].[Person]
+)
+   
+      SELECT * 
+  FROM Persons
+ WHERE RowNumber BETWEEN (@PageNumber - 1) * @PageSize AND @PageNumber * @PageSize 
+ ORDER BY FirstName
+ 
+  END 
+ELSE 
+  BEGIN 
+      
+        WITH Persons AS
+(
+    SELECT ROW_NUMBER() OVER(ORDER BY FirstName ASC) AS RowNumber
+          ,PersonId
+          ,FirstName
+          ,Surname
+          ,DateOfBirth 
+      FROM [dbo].[Person]
+)
+   
+  SELECT * 
+  FROM Persons
+ WHERE RowNumber BETWEEN (@PageNumber - 1) * @PageSize + 1 AND @PageNumber * @PageSize 
+ ORDER BY FirstName
+
+END
+END
+GO
+***Search from two tables**
+CREATE PROCEDURE [dbo].[SearchCards]
+(
+@CardNumber NVARCHAR(64)
+)
+AS
+BEGIN
+SELECT    [CardNumber],[Amount]    
+FROM      [dbo].[Card] 
+INNER JOIN
+          [dbo].[Transaction] 
+ON        
+         CREATE PROCEDURE [dbo].[SearchCards]
+(
+@CardNumber NVARCHAR(64)
+)
+AS
+BEGIN
+SELECT    [CardNumber],[Amount]    
+FROM      [dbo].[Card] 
+INNER JOIN
+          [dbo].[Transaction] 
+ON        
+         [CardNumber] = @CardNumber || Like %+[CardNumber]%+
+AND
+		  [dbo].[Card].[CardId] = [dbo].[Transaction].[CardId]
+ ORDER BY
+          [CardNumber] ASC
+
+END; 
+AND
+		  [dbo].[Card].[CardId] = [dbo].[Transaction].[CardId]
+ ORDER BY
+          [CardNumber] ASC
+
+END;
+****VerifyAndActivateUse***
+Create PROCEDURE VerifyAndActivateUser(
+@UserName VARCHAR(10),
+@result int OUTPUT)
+ AS BEGIN
+IF EXISTS (select UserName from Users WHERE Id=@UniqueId) 
+BEGIN
+UPDATE Users SET IsActive=1 WHERE Id=@UniqueId
+ set @result=1
+END
+else 
+ set @result=0
+
+***Registration table and Stored Procedure***
+CREATE TABLE [dbo].[User_Registration]
+(
+ [UserId] INT IDENTITY(1,1) NOT NULL,
+ [UserName] NVARCHAR(54) NOT NULL,
+ [FirstName] NVARCHAR(54) NOT NULL,
+ [Surname] NVARCHAR(54) NOT NULL,
+ [Cell_Phone_Number] NVARCHAR(54) NOT NULL,
+ [Email_Address] NVARCHAR(54) NOT NULL,
+ [Password] NVARCHAR(54) NOT NULL
+ CONSTRAINT[PK_User_Registration_UserId] PRIMARY KEY ([UserId]),
+ CONSTRAINT[CK_User_Registration_UserName] CHECK([UserName] != [UserName]),
+ CONSTRAINT[CK_User_Registration_FirstName] CHECK(LEN([FirstName])<>(0)),
+ CONSTRAINT[CK_User_Registration_Surname] CHECK(LEN([Surname])<>(0)),
+ CONSTRAINT[CK_User_Registration_Cell_Phone_Number] CHECK(LEN([Cell_Phone_Number])<>(0)),
+ CONSTRAINT[CK_User_Registration_Email_Address] CHECK(LEN([Email_Address])<>(0)),
+ CONSTRAINT[CK_User_Registration_Password]  CHECK(LEN([Password])<>(0))
+
+ )
+ GO
+ CREATE PROCEDURE [dbo].[Add_Registration]
+ (
+  @UserName NVARCHAR(54),
+  @FirstName NVARCHAR(54),
+  @Surname NVARCHAR(54),
+  @Cell_Phone_Number NVARCHAR(54),
+  @Email_Addresse NVARCHAR(54),
+  @Password NVARCHAR(54)
+  )
+  AS 
+  BEGIN
+  INSERT INTO [dbo].[User_Registration]([UserName],[FIrstName],[Surname],[Cell_Phone_Number],[Password],[Email_Address])
+  VALUES(@UserName,@FirstName,@Surname,@Cell_Phone_Number,@Cell_Phone_Number,@Password)
+ END
+***email windows form**
+ ALTER PROCEDURE [dbo].[AddRegistration]
+ (
+  @UserName NVARCHAR(54),
+  @FirstName NVARCHAR(54),
+  @Surname NVARCHAR(54),
+  @MobileNumber INT,
+  @EmailAddress NVARCHAR(54),
+  @Password NVARCHAR(54)
+  )
+  AS 
+ 
+  IF EXISTS (SELECT UserId FROM [dbo].[UserRegistration] WHERE [UserName] = @UserName)
+  BEGIN
+  SELECT -1 --User Name Exists
+  END
+  ELSE IF EXISTS(SELECT UserId FROM [dbo].[UserRegistration] WHERE [EmailAddress] = @EmailAddress)
+  BEGIN 
+  SELECT -2 --Email Address Exists
+  END
+  ELSE
+  BEGIN
+  INSERT INTO [dbo].[UserRegistration]([UserName],[FirstName],[Surname],[MobileNumber],[EmailAddress],[Password])
+  VALUES(@UserName,@FirstName,@Surname,@MobileNumber,@EmailAddress,@Password)
+ END
