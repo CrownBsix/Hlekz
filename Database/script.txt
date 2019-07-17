@@ -1,0 +1,224 @@
+@model Fundi_Pay.Models.Person
+
+@{
+    ViewBag.Title = "Index";
+}
+
+
+
+<html>
+<head>
+ 
+    <script src="~/Content/css/paging.js"></script>
+    <link href="~/Content/css/paging.css" rel="stylesheet" />
+</head>
+<body>
+    @using (Html.BeginForm("Persondetails", "Persons", FormMethod.Get))
+    {
+        <div>
+            <div>
+                <h3>Select number of rows</h3>
+                <div id="maxRows" class="form-group">
+                    <select>
+                        <option value="5">5</option>
+                        <option value="5">10</option>
+                        <option value="5">15</option>
+                        <option value="5">20</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                Search <input type="Text" id="MyInput" onkeyup="Function()" placeholder="Search for names.." title="Type in a name">
+            </div>
+
+            <table id="tabledata" class="datatable">
+                <thead>
+                    <tr>
+                        <th>PersonId</th>
+                        <th>FirstName</th>
+                        <th>Surname</th>
+                        <th>Date Of Birth</th>
+                        <th>Age</th>
+                    </tr>
+
+                    @{
+
+                        foreach (System.Data.DataRow dr in ViewBag.record.Rows)
+
+                        {
+
+                            <tr>
+
+                                <td>@dr["PersonId"]</td>
+
+                                <td>@dr["FirstName"]</td>
+
+                                <td>@dr["Surname"]</td>
+
+                                <td>@dr["Date_Of_Birth"]</td>
+
+                                <td>@dr["Age"]</td>
+
+                            </tr>
+
+                        }
+
+                    }
+                </thead>
+
+                <tbody id="tbldata"></tbody>
+
+            </table>
+
+            <div id="paged">
+                <nav>
+                    <ul class="pagination"></ul>
+                </nav>
+
+            </div>
+        </div>
+        <script>
+          $(document).ready(function() {
+                                        //Initially load pagenumber=1
+                                        GetPageData(1);
+                                    });
+                                    function GetPageData(pageNumber, PageSize)
+                                    {
+        //After every trigger remove previous data and paging
+                                        $("#tbldata").empty();
+        $("#paged").empty();
+                                        $.getJSON("/Home/GetPageData", { PageNumber: pageNum, PageSize: PageSize }, function(response) {
+                                            var rowData = "";
+                                            for (var i = 1; i < response.Data.length; i++)
+                                            {
+                                                rowData = rowData + '<tr><td>' + response.Data[i].Id + '</td><td>' + response.Data[i].Name + '</td></tr>';
+                                            }
+                                            $("#tbldata").append(rowData);
+                                            PaggingTemplate(response.TotalPages, response.CurrentPage);
+                                        });
+                                }
+                                //This is paging temlpate 
+                                function PaggingTemplate(totalPage, currentPage)
+                                {
+                                    var template = "";
+                                    var TotalPages = totalPage;
+                                    var CurrentPage = currentPage;
+                                    var PageNumberArray = Array();
+
+
+                                    var countIncr = 1;
+                                    for (var i = currentPage; i <= totalPage; i++)
+                                    {
+                                        PageNumberArray[0] = currentPage;
+                                        if (totalPage != currentPage && PageNumberArray[countIncr - 1] != totalPage)
+                                        {
+                                            PageNumberArray[countIncr] = i + 1;
+                                        }
+                                        countIncr++;
+                                    };
+                                    PageNumberArray = PageNumberArray.slice(0, 5);
+                                    var FirstPage = 1;
+                                    var LastPage = totalPage;
+                                    if (totalPage != currentPage)
+                                    {
+                                        var ForwardOne = currentPage + 1;
+                                    }
+                                    var BackwardOne = 1;
+                                    if (currentPage > 1)
+                                    {
+                                        BackwardOne = currentPage - 1;
+                                    }
+
+                                    template = "<p>" + CurrentPage + " of " + TotalPages + " pages</p>"
+                                    template = template + '<ul class="pager">' +
+            '<li class="previous"><a href="#" onclick="GetPageData(' + FirstPage + ')"><i class="fa fa-fast-backward"></i>&nbsp;First</a></li>' +
+            '<li><select ng-model="PageSize" id="selectedId"><option value="20" selected>20</option><option value="5">5</option><option value="10">10</option><option value="15">15</option></select> </li>' +
+            '<li><a href="#" onclick="GetPagedData(' + BackwardOne + ')"><i class="glyphicon glyphicon-backward"></i></a>';
+
+                                    var numberingLoop = "";
+                                    for (var i = 0; i < PageNumberArray.length; i++)
+                                    {
+                                        numberingLoop = numberingLoop + '<a class="page-number active" onclick="GetPageData(' + PageNumberArray[i] + ')" href="#">' + PageNumberArray[i] + ' &nbsp;&nbsp;</a>'
+                                    }
+                                    template = template + numberingLoop + '<a href="#" onclick="GetPagedData(' + ForwardOne + ')" ><i class="glyphicon glyphicon-forward"></i></a></li>' +
+                                        '<li class="next"><a href="#" onclick="GetPagedData(' + LastPage + ')">Last&nbsp;<i class="fa fa-fast-forward"></i></a></li></ul>';
+        $("#paged").append(template);
+        $('#selectedId').change(function() {
+                                        GetPagedData(1, $(this).val());
+                                    });
+                            }
+</script>
+
+        /*<script>
+
+            $('#tabledata').pagination({
+                dataSource: [1, 2, 3, 4, 5, 6, 7, ... , 100],
+                PageSize: 5,
+                showPrevious: true,
+                showNext: true,
+                callback: function (data, pagination) {
+                    // template method of yourself
+                    var html = template(data);
+                    dataContainer.html(html);
+                }
+            })
+
+        </script>
+                              <script>
+                                  var table = '#tabledata'
+                                  $('#maxRows').on('change', function () {
+                                      $('.pagination').html('')
+                                      var trNum = 0
+                                      var maxRows = parseInt($(this).val())
+                                      var totalRows = $(table + '#tbldata tr').length
+                                      $(table + 'tr:gt(0)').each(function () {
+                                          trNum++
+                                          if (trNum > maxRows) {
+                                              $(this).hide()
+
+                                          }
+                                          if (trNum < maxRows) {
+                                              $(this).show()
+                                          }
+                                      })
+                                      if (totalRows > maxRows) {
+                                          var pagenum = Math.ceil(totalRows / maxRows)
+                                          for (var i = 1; i <= pageNum;) {
+                                              $('.pagination').append('<li data-page = "' + i + '">\<span>' + i++ + '<span> clas="sr-only">(current)<span><span>\</li>').show()
+
+
+                                          }
+                                      }
+                                      $('.pagination li:first-child').addClass('active')
+                                      $('.pagination li').on('click', function () {
+                                          var pageNum = $(this).attr('data-page')
+                                          var trIndex = 0;
+                                          $('.pagination li ').removeClass('active')
+                                          $(this).addClass('active')
+                                          $(table + ' tr:gt(0)').each(function () {
+                                              trIndex++
+                                              if (trIndex > (maxRows * pageNum) || trIndex <= ((maxRows * pageNum) - maxRows)) {
+                                                  $(this).hide()
+                                              } else {
+                                                  $(this).show()
+                                              }
+                                          })
+                                      })
+                                  })
+                                  $(function () {
+                                      $('table tr:eg(0)').prepend('<th>PersonId<th>')
+                                      var PersonId = 1;
+                                      $('table tr:gt(0)').each(function () {
+                                          PersonId++
+                                          $(this).prepend('<th>' + PersonId + '')
+                                      })
+                                  })
+
+                              </script>*/
+                              
+
+
+ }
+
+</body>
+</html>

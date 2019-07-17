@@ -1,0 +1,33 @@
+
+@model Fundi_Pay.Models.Person
+@{
+    ViewBag.Title = "Person Information";
+}
+<div class="jumbotron">
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>@Html.DisplayNameFor(model => model.FirstName)</th>
+                <th>@Html.DisplayNameFor(model => model.Surname)</th>
+                <th>@Html.DisplayNameFor(model => model.Date_Of_Birth)</th>
+                <th>@Html.DisplayNameFor(model => model.Age)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@Html.DisplayFor(model => item.FirstName)</td>
+                    <td>@Html.DisplayFor(model => item.Surname)</td>
+                    <td>@Html.DisplayFor(model => item.Date_Of_Birth)</td>
+                    <td>@Html.DisplayFor(model => item.Age)</td>
+                </tr>
+            }
+            <tr>
+                <td>@Html.ActionLink("Previous", "Previous", null, new { @class = "btn btn-info" })</td>
+                <td>@ViewBag.PageNumber</td>
+                <td>@Html.ActionLink("Next", "Next", null, new { @class = "btn btn-info" })</td>
+            </tr>
+        </tbody>
+    </table>
+</div>

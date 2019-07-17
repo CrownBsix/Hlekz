@@ -1,0 +1,1098 @@
+ASP.NET
+MVC
+**Entity Framework
+Microsoft Sql Server Management Studio
+SQL
+**Stored Procedures
+**ADO.Net
+Html5
+Css3
+Jquery
+Javascript
+**Jquery datatables
+AJAX
+Razor 
+
+----Paginging,Sorting,Filtering and Searching using Entity framework----
+
+public ActionResult LoadData()
+         {
+
+             try
+             {
+
+                 //Creating instance of DatabaseContext class  
+                 using (FundiPayEntities1 _context = new FundiPayEntities1())
+                 {
+                  
+                    
+                    var draw = Request.Form.GetValues("draw").SingleOrDefault();
+                    var start = Request.Form.GetValues("start").FirstOrDefault();
+                    var length = Request.Form.GetValues("length").FirstOrDefault();
+                    var sortColumn = Request.Form.GetValues("columns[" + Request.Form.GetValues("order[0][column]").FirstOrDefault() + "][name]").FirstOrDefault();
+                    var sortColumnDir = Request.Form.GetValues("order[0][dir]").FirstOrDefault();
+                    var searchValue  = Request.Form.GetValues("search[value]").FirstOrDefault();
+
+                    
+
+                    // var draw = 0;
+                    // var start =0;
+                    // var length = 10;
+                    // string sortColumn = "FirstName";
+                    // string sortColumnDir = "ASC";
+                    // string searchValue = null ;
+
+
+                    //Paging Size (10,20,50,100)
+                    // int pageSize = length;
+                    // int skip = start;
+                    // int recordsTotal = 0;
+                    //int filtered
+                    int pageSize = length != null ? Convert.ToInt32(length) : 0;
+                    int skip = start != null ? Convert.ToInt32(start) : 0;
+                    int totalRecords = 0;
+
+
+                    //int pageSize = Legth;
+                    // int skip = displayStart;
+                    // int recordsTotal = 0;
+
+                    // Getting all People data    
+
+                    // IEnumerable<Person> filteredPersons = personData;
+
+
+                    // var displayedpersons = filteredPersons.Skip(start).Take(length);
+
+
+                    //retrieving people information
+
+                    var personData = (from Person in _context.People
+                                      select  Person).ToList();
+                    
+
+
+                    //Sorting    
+                    if (!(string.IsNullOrEmpty(sortColumn) && string.IsNullOrEmpty(sortColumnDir)))
+                         {
+                             personData = personData.OrderBy(sortColumn + "").ToList();
+                    
+                         }
+                    //Search    
+                    if (!string.IsNullOrEmpty(searchValue))
+                    {
+                        personData = personData.Where(m => m.FirstName.Contains(searchValue) || m.Surname.Contains(searchValue)).ToList();
+                    }
+
+                   
+
+                    //total number of rows count     
+
+                    totalRecords = personData.Count();
+                     //Paging 
+
+
+                         var data = personData.Skip(skip).Take(pageSize).ToList();
+
+
+
+                         //Returning Json Data    
+
+                         return Json(new { draw = draw, recordsFiltered = totalRecords, recordsTotal = totalRecords, data = data }, JsonRequestBehavior = JsonRequestBehavior.AllowGet);
+
+
+
+                 }
+
+             }
+
+             catch (Exception ex)
+             {
+                 return View(ex);
+             }
+         }
+    
+***Simpliefied way of paging,sorting,filtering and serching and it's working very well***
+
+//Getting the total numberr of records in the database
+
+totalRecords = (from p in _context.People select p).Count(); 
+
+//Retrieving,Searching and Sorting people information
+
+var data = (from d in _context.People
+                                 where d.FirstName.Contains(searchValue) || d.Surname.Contains(searchValue)
+                                 orderby sortColumn
+                                 select d).Skip(skip).Take(pageSize).ToList();
+
+***Script for paging,sorting,filtering and serching*** Plugins can be found cdn.datatables...or Jquery datatables
+ <script>
+           
+            $(document).ready(function () {
+                function getDateString(date) {
+                    var dateObj = new Date(parseInt(date.substr(6)));
+                    return dateObj.toDateString();
+                }
+                $("#datatable").DataTable({
+
+
+                    "processing": true, // for show progress bar
+
+                    "serverSide": true, // for process server side
+                    "searchable": true,
+                    "orderable": true,
+                    "filter": true, // this is for disable filter (search box)
+                    "orderMulti": false, // for disable multiple column at once
+
+                    "ajax": {
+
+                        "url": "/person/LoadData/",
+
+                        "type": "Post",
+
+                        "Datatype": "json",
+                    },
+
+
+                    "columns": [
+
+                        { "data": "FirstName", "name": "FirstName" },
+
+                        { "data": "Surname", "name": "Surname" },
+
+                        {
+                            "data": "Date_Of_Birth", "name": "Date_Of_Birth", "render": function (data) { return getDateString(data); }},
+
+                        { "data": "Age", "name": "Age" },
+
+
+                    ]
+                   
+
+                });
+            });
+         
+
+        </script>
+
+
+---Saving data into multiply tables at once using foreign keys---
+
+   public ActionResult Index()
+        {
+            ViewBag.availableCards = RetrieveAvailableCard();
+            //IssueCard availablecards = new IssueCard();
+            // availablecards.availablecard = RetrieveAvailableCard();
+
+            return View();
+        }
+        //Get availablecards
+        [HttpGet]
+        public static List<AvailableCards> RetrieveAvailableCard()
+        {
+            List<AvailableCards> availableCards = new List<AvailableCards>();
+            string connection = ConfigurationManager.ConnectionStrings["FundiPay"].ConnectionString;
+            using (SqlConnection con = new SqlConnection(connection))
+            {
+                using (SqlCommand sqlcommand = new SqlCommand())
+                {
+                    sqlcommand.Connection = con;
+                    sqlcommand.CommandType = CommandType.StoredProcedure;
+                    sqlcommand.CommandText = "[dbo].[RetrieveAvailableCard]";
+                    if (con.State != ConnectionState.Open)
+                    {
+                        con.Open();
+                    }
+
+                    using (SqlDataReader reader = sqlcommand.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            availableCards.Add(new AvailableCards
+                            {
+                                CardNumber = Convert.ToInt64(reader["CardNumber"]).ToString(),
+                                CardId = Convert.ToInt32(reader["AvailableCardId"])
+
+                            });
+
+                        }
+                    }
+                    if (con.State == ConnectionState.Open)
+                    {
+                        con.Close();
+                    }
+
+                }
+            }
+
+            return availableCards;
+        }
+
+        [HttpPost]
+        public ActionResult CreateCard(IssueCard model)
+        {
+            /* availablecards.availablecard = RetrieveAvailableCard();
+             var selectedItem = availablecards.availablecard.Find(p => p.CardNumber == availablecards.CardId.ToString());
+             if (selectedItem != null)
+             {
+                 selectedItem.Selected = true;
+                 ViewBag.Message = "availablecards: " + selectedItem.CardId;
+                 ViewBag.Message += "\\SelectCardNumber: " + availablecards.SelectCardNumber;
+             }*/
+            int ContactId = 0;
+            int CardId = 0;
+            //model.SelectCardNumber = SelectCardNumber.AvailableCard();
+            // var IssueCard = new IssueCard();
+            //var value = IssueCard.availablecard.Where(r => r.CardNumber == IssueCard.SelectCardNumber.ToString());
+            //var CardNumbers  = SelectCardNumber.(CardNumber => CardNumber.RetrieveAvailableCard).ToList();
+            //var SelectedValue = model.CardNumber;
+            Random Pingenarate = new Random();
+            SqlConnection connection = new SqlConnection(ConfigurationManager.ConnectionStrings["FundiPay"].ConnectionString);
+
+            try
+            {
+
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+                SqlCommand CreateContactSqlCommand = new SqlCommand();
+
+                CreateContactSqlCommand.Connection = connection;
+                CreateContactSqlCommand.CommandType = CommandType.StoredProcedure;
+                CreateContactSqlCommand.CommandText = "[dbo].[CreateContact]";
+                CreateContactSqlCommand.Parameters.Add(new SqlParameter { ParameterName = "@MobileNumber", SqlDbType = SqlDbType.NVarChar, SqlValue = model.MobileNumber });
+                using (IDataReader reader = CreateContactSqlCommand.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+
+                        ContactId = reader["ContactId"] != DBNull.Value ? Convert.ToInt32(reader["ContactId"]) : 0;
+                    }
+                }
+
+
+                SqlCommand CreateCardSqlCommand = new SqlCommand();
+
+                CreateCardSqlCommand.Connection = connection;
+                CreateCardSqlCommand.CommandType = CommandType.StoredProcedure;
+                CreateCardSqlCommand.CommandText = "[dbo].[CreateCard]";
+
+                CreateCardSqlCommand.Parameters.Add(new SqlParameter { ParameterName = "@ContactId", SqlDbType = SqlDbType.Int, SqlValue = ContactId });
+                CreateCardSqlCommand.Parameters.Add(new SqlParameter { ParameterName = "@CardNumber", SqlDbType = SqlDbType.NVarChar, SqlValue = model.CardNumber });
+                CreateCardSqlCommand.Parameters.Add(new SqlParameter { ParameterName = "@Pin", SqlDbType = SqlDbType.NVarChar, SqlValue = Pingenarate.Next(1000, 10000) });
+
+                using (IDataReader reader = CreateCardSqlCommand.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        CardId = reader["CardId"] != DBNull.Value ? Convert.ToInt32(reader["CardId"]) : 0;
+
+                    }
+                }
+
+
+                SqlCommand MarkCardAsIssuedSqlCommand = new SqlCommand();
+
+                MarkCardAsIssuedSqlCommand.Connection = connection;
+                MarkCardAsIssuedSqlCommand.CommandType = CommandType.StoredProcedure;
+                MarkCardAsIssuedSqlCommand.CommandText = "[dbo].[MarkCardAsIssued]";
+                MarkCardAsIssuedSqlCommand.Parameters.Add(new SqlParameter { ParameterName = "@CardNumber", SqlDbType = SqlDbType.NVarChar, SqlValue = model.CardNumber });
+                MarkCardAsIssuedSqlCommand.ExecuteNonQuery();
+
+
+                SqlCommand CreateTransactionSqlCommand = new SqlCommand();
+
+                CreateTransactionSqlCommand.Connection = connection;
+                CreateTransactionSqlCommand.CommandType = CommandType.StoredProcedure;
+                CreateTransactionSqlCommand.CommandText = "[dbo].[CreateTransaction]";
+                CreateTransactionSqlCommand.Parameters.Add(new SqlParameter { ParameterName = "@CardId", SqlDbType = SqlDbType.Int, SqlValue = CardId });
+                CreateTransactionSqlCommand.Parameters.Add(new SqlParameter { ParameterName = "@Amount", SqlDbType = SqlDbType.Decimal, SqlValue = model.Amount });
+                CreateTransactionSqlCommand.Parameters.Add(new SqlParameter { ParameterName = "@Reference", SqlDbType = SqlDbType.NVarChar, SqlValue = "Fundi_Credit" });
+                CreateTransactionSqlCommand.Parameters.Add(new SqlParameter { ParameterName = "@TransactionDate", SqlDbType = SqlDbType.DateTime, SqlValue = DateTime.Now });
+                CreateTransactionSqlCommand.ExecuteNonQuery();
+
+            }
+            catch (Exception ex)
+            {
+                return View("Error", ex);
+            }
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
+            ViewBag.Issued = "Card Issued sucessefully";
+            return RedirectToAction("Index");
+        }
+
+
+***Rough Codes for practise***
+
+
+        //Creating connection
+        // SqlConnection connection = new SqlConnection(ConfigurationManager.ConnectionStrings["FundiPay"].ConnectionString);
+        // List<Person> persons = new List<Person>();
+        // Database_Access_Layer.database databaselayer = new Database_Access_Layer.database();
+      /*  string connect = ConfigurationManager.ConnectionStrings["FundiPay"].ConnectionString;
+           
+        FundiPayEntities fdp;
+        Person prsn = new Person();
+        public ActionResult Index()
+        {
+
+          
+
+
+            return View();
+        }
+        public JsonResult GetData()
+        {
+            try
+            {
+                using (fdp= new FundiPayEntities())
+                {
+                    var myList = prsn.GetPersons(fdp);
+                    return Json(myList, JsonRequestBehavior.AllowGet);
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+        public object GetPersons(FundiPayEntities fdp)
+        {
+            try
+            {
+                var myList = ((from l in fdp.People
+                               select new
+                               {
+                                   PersonId = l.PersonId,
+                                   FirstName = l.FirstName,
+                                   Surname = l.Surname,
+                                   Date_Of_Birth = l.Date_Of_Birth,
+                                   Age = l.Age,
+                                   
+                               }).OrderBy(l => l.PersonId)).Take(10).ToList();
+                return myList;
+
+            }
+            catch (Exception)
+            {
+
+                throw new NotImplementedException();
+            }
+
+        }
+        public List<Person> GetPersonsSP(FundiPayEntities fdp)
+        {
+            try
+            {
+                var myList = fdp.Database.SqlQuery<Person>(" EXEC GetPeople").ToList();
+                return myList;
+
+            }
+            catch (Exception)
+            {
+
+                throw new NotImplementedException();
+            }
+
+        }
+    }
+}
+        /* public JsonResult Get_Data()
+         {
+             DataSet ds = databaselayer.Getdata();
+             List<Person> Listpersons = new List<Person>();
+             foreach(System.Data.DataRow reader in ds.Tables[0].Rows)
+             {
+                 Listpersons.Add(new Person
+                 {
+                     PersonId = Convert.ToInt32( reader["FirstName"].ToString()),
+                     FirstName = reader["FirstName"].ToString(),
+                     Surname = reader["Surname"].ToString(),
+                     Date_Of_Birth = Convert.ToDateTime(reader["Date_Of_Birth"].ToString()),
+                     Age = Convert.ToInt32(reader["Age"])
+                 });
+             }
+
+             return Json(Listpersons, JsonRequestBehavior.AllowGet);
+
+         }*/
+
+    /* SqlConnection connection = new SqlConnection(ConfigurationManager.ConnectionStrings["FundiPay"].ConnectionString);
+     try
+     {
+         if (connection.State != ConnectionState.Open)
+         {
+             connection.Open();
+         }
+
+         using (SqlCommand Get_PersonSqlCommand = new SqlCommand())
+         {
+             Get_PersonSqlCommand.Connection = connection;
+             Get_PersonSqlCommand.CommandType = CommandType.StoredProcedure;
+             Get_PersonSqlCommand.CommandText = "[dbo].[GetPeople]";
+             // Get_PersonSqlCommand.Parameters.Add(new SqlParameter("@startRowIndex", startRowIndex));
+             //Get_PersonSqlCommand.Parameters.Add(new SqlParameter("@maximumRows", maximumRows));
+             SqlDataAdapter ad = new SqlDataAdapter(Get_PersonSqlCommand);
+             DataSet ds = new DataSet();
+             ad.Fill(ds);
+             ViewBag.record = ds.Tables[0];
+
+
+
+         }
+
+
+     }
+     catch (Exception ex)
+     {
+         return View("Error", ex);
+     }
+     finally
+     {
+         if (connection.State == ConnectionState.Open)
+         {
+             connection.Close();
+         }
+     }*/
+
+    /* public ActionResult AjaxHandler(jQueryDataTableParamModel param)
+    {
+
+    var People = DataRepository.GetPersons();
+    IEnumerable<Person> filteredPersons = People;
+
+    if (!string.IsNullOrEmpty(param.sSearch))
+    {
+       //Used if particulare columns are filtered 
+       var FirstNameFilter = Convert.ToString(Request["sSearch_1"]);
+       var SurnameFilter = Convert.ToString(Request["sSearch_2"]);
+
+
+       //Optionally check whether the columns are searchable at all 
+       var isFirstNameSearchable = Convert.ToBoolean(Request["bSearchable_1"]);
+       var isSurnameSearchable = Convert.ToBoolean(Request["bSearchable_2"]);
+
+
+       filteredPersons = DataRepository.GetPersons()
+          .Where(c => isFirstNameSearchable && c.FirstName.ToLower().Contains(param.sSearch.ToLower())
+                      ||
+                      isSurnameSearchable && c.Surname.ToLower().Contains(param.sSearch.ToLower())
+                      );
+
+    }
+    else
+    {
+       filteredPersons = People;
+    }
+
+    var isFirstNameSortable = Convert.ToBoolean(Request["bSortable_1"]);
+    var isSurnameSortable = Convert.ToBoolean(Request["bSortable_2"]);
+    var isDate_Of_BirthSortable = Convert.ToBoolean(Request["bSortable_3"]);
+    var sortColumnIndex = Convert.ToInt32(Request["iSortCol_0"]);
+    Func<Person, string> orderingFunction = (c => sortColumnIndex == 1 && isFirstNameSortable ? c.FirstName :
+                                                  sortColumnIndex == 2 && isSurnameSortable ? c.Surname :
+
+                                                  "");
+    //  var sortColumnIndex = Convert.ToInt32(Request["iSortCol_0"]);
+    // Func<Person, string> orderingFunction = (c => sortColumnIndex == 1 ? c.FirstName : sortColumnIndex == 2 ? c.Surname :);
+
+    var sortDirection = Request["sSortDir_0"]; // asc or desc
+    if (sortDirection == "asc")
+       filteredPersons = filteredPersons.OrderBy(orderingFunction);
+    else
+       filteredPersons = filteredPersons.OrderByDescending(orderingFunction);
+
+    var displayedPersons = filteredPersons;
+    var result = from c in displayedPersons
+                select new[] { Convert.ToString(c.PersonId), c.FirstName };
+    return Json(new
+    {
+       sEcho = param.sEcho,
+       iTotalRecords = People.Count(),
+       iTotalDisplayRecords = filteredPersons.Count(),
+       aaData = result
+    },
+       JsonRequestBehavior.AllowGet);
+
+    }
+    }
+    }
+
+    /* public JsonResult GetPersons(int length = -1, int start = 0)
+    {
+    List<Person> persons = new List<Person>();
+    SqlConnection connection = new SqlConnection(ConfigurationManager.ConnectionStrings["FundiPay"].ConnectionString);
+
+
+    using (SqlCommand command = new SqlCommand())
+
+    {
+       command.Connection = connection;
+       command.CommandText = "[dbo].[Person1]";
+       command.CommandType = CommandType.StoredProcedure;
+       connection.Open();
+
+       StringBuilder sbSQL = new StringBuilder();
+
+       sbSQL.AppendFormat("select top({0}) * from (select *, row_number() over(order by FirstName ASC) as [row_number] from [dbo].[Person] ) ", length);
+       sbSQL.AppendFormat(" where row_number >{0}", start);
+
+       string searchVal = HttpContext.Request.Form["search[Value]"];
+
+       if (!string.IsNullOrEmpty(searchVal))
+       {
+           sbSQL.AppendFormat(" and FirstName like '%{0}%' or FirstName like '%{0}%'", searchVal);
+       }
+
+
+           command.CommandText = sbSQL.ToString();
+
+
+       SqlDataReader reader = command.ExecuteReader();
+             while (reader.Read())
+               {
+                   persons.Add(new Person()
+                   {
+                       FirstName = reader["FirstName"].ToString(),
+                       Surname = reader["Surname"].ToString(),
+                       Date_Of_Birth = Convert.ToDateTime(reader["Date_Of_Birth"].ToString()),
+                       Age = Convert.ToInt32(reader["Age"].ToString())
+                   });
+               }
+               reader.Close();
+       connection.Close();
+
+
+
+
+
+
+
+
+    }
+
+    var response = new { data = persons, recordsFiltered = 10, recordsTotal = 110 };
+    return Json(response, JsonRequestBehavior.AllowGet);
+
+    }
+    }
+    }*/
+
+
+
+
+
+
+    /*   public void ProcessRequest(HttpContext context)
+       {
+           int displayLength = int.Parse(context.Request["iDisplayLength"]);
+           int displayStart = int.Parse(context.Request["iDisplayLength"]);
+           int sortcol = int.Parse(context.Request["sSortcol"]);
+           int sortDir = int.Parse(context.Request["sSortDir"]);
+           int search = int.Parse(context.Request["sSearch"]);
+           string connection = ConfigurationManager.ConnectionStrings["FundiPay"].ConnectionString.ToString();
+           List<Person> Listpersons = new List<Person>();
+           int filteredCount = 0;
+           using (SqlConnection connect = new SqlConnection(connection))
+           {
+               SqlCommand command = new SqlCommand();
+               command.Connection = connect;
+               command.CommandText = "[dbo].[Person]";
+               command.CommandType = CommandType.StoredProcedure;
+               SqlParameter paramDisplayLength = new SqlParameter()
+               {
+                   ParameterName = "@DisplayLength",
+                   Value = "displayLength"
+               };
+               command.Parameters.Add(paramDisplayLength);
+               SqlParameter paramDisplayStart = new SqlParameter()
+               {
+                   ParameterName = "@DisplayStart",
+                   Value = "displayStart"
+               };
+               command.Parameters.Add(paramDisplayStart);
+               SqlParameter paramSortCol = new SqlParameter()
+               {
+                   ParameterName = "@SortCol",
+                   Value = "sortCol"
+               };
+               command.Parameters.Add(paramSortCol);
+               SqlParameter paramSortDir = new SqlParameter()
+               {
+                   ParameterName = "@SortDir",
+                   Value = "sortDir"
+               };
+               command.Parameters.Add(paramSortDir);
+               SqlParameter paramSearch = new SqlParameter()
+               {
+                   ParameterName = "@Search",
+                   Value = "search"
+               };
+               command.Parameters.Add(paramSearch);
+
+               connect.Open();
+               SqlDataReader rdr = command.ExecuteReader();
+               while (rdr.Read())
+               {
+                   filteredCount = Convert.ToInt32(rdr["TotalCount"]);
+                   Person person = new Person();
+                   person.PersonId = Convert.ToInt32(rdr["PersonId"]);
+                   person.FirstName = rdr["FirstName"].ToString();
+                   person.Surname = rdr["Surname"].ToString();
+                   person.Age = Convert.ToInt32(rdr["Age"]);
+                   Listpersons.Add(person);
+               }
+           }
+           var Result = new
+           {
+               // iTotalRecords = GetPersonTotalCount,
+               iTotalDisplayRecord = filteredCount,
+               aaData = Listpersons
+           };
+           JavaScriptSerializer javaScript = new JavaScriptSerializer();
+           context.Response.Write(javaScript.Serialize(Result));
+       }
+       private int GetPersonsTotalCount()
+       {
+           int TotalPersonsCount = 0;
+           string connection = ConfigurationManager.ConnectionStrings["FundiPay"].ConnectionString.ToString();
+           using (SqlConnection connect = new SqlConnection(connection))
+           {
+
+           }
+           return (TotalPersonsCount);
+       }
+    }
+    }
+
+      // int maximumRows = 10;
+       // GET: Person
+      /* public ActionResult Index()
+       {
+           double startRowIndex = Convert.ToDouble(Session["startRowIndex"]) == 0 ? 1 : Convert.ToDouble(Session["startRowIndex"]);
+           Session["startRowIndex"] = startRowIndex;
+           int totalPersons = new DALPerson().GetTotalPersons();
+           ViewBag.PageNumber = Math.Floor(startRowIndex / maximumRows) == 0 ? 1 : Math.Floor(startRowIndex / maximumRows);
+           List<Person> persons = new DALPerson().GetPersons(Convert.ToInt32(startRowIndex), maximumRows);
+           return View(persons);
+
+       }
+
+       public class Service1 : IService1
+       {
+           private string connection_string = ConfigurationManager.ConnectionStrings["FundiPay"].ConnectionString.ToString();
+           public List<Person> getPersons(int startRowIndex, int maximumRows)
+           {
+               List<Person> persons = new List<Person>();
+               SqlConnection connection = new SqlConnection(connection_string);
+
+               SqlCommand command = new SqlCommand();
+               command.CommandText = "[dbo].[Person]";
+               command.CommandType = CommandType.StoredProcedure;
+               command.Parameters.Add(new SqlParameter("@startRowIndex", startRowIndex));
+               command.Parameters.Add(new SqlParameter("@maximumRows", maximumRows));
+
+               try
+               {
+                   connection.Open();
+                   SqlDataReader dr = command.ExecuteReader();
+
+                   while (dr.Read())
+                   {
+                       Person person = new Person();
+                       person.PersonId = Convert.ToInt32(dr["PersonId"]) == 0 ? 0 : Convert.ToInt32(dr["PersonId"]);
+                       person.FirstName = dr["FirstName"].ToString() == string.Empty ? "" : dr["FirstName"].ToString();
+                       person.Surname = dr["Surname"].ToString() == string.Empty ? "" : dr["Surname"].ToString();
+                       person.Age = Convert.ToInt32(dr["Age"].ToString() == string.Empty ? "" : dr["Age"].ToString());
+                       persons.Add(person);
+                   }
+                   connection.Close();
+                   return persons;
+               }
+               catch (Exception e) { throw e; }
+           }
+
+
+           public List<Person> GetPersons(int startRowIndex, int maximumRows)
+           {
+               throw new NotImplementedException();
+           }
+
+           public int getTotalpersons()
+           {
+               int total = 0;
+
+               using (SqlConnection connection = new SqlConnection(connection_string))
+               {
+                   SqlCommand command = new SqlCommand();
+                   command.CommandText = "getTotalpersons";
+                   command.CommandType = CommandType.StoredProcedure;
+                   try
+                   {
+                       connection.Open();
+                       total = Convert.ToInt32(command.ExecuteScalar());
+                   }
+                   catch (Exception ex) { throw ex; }
+               }
+               return total;
+           }
+
+           public int GetTotalPersons()
+           {
+               throw new NotImplementedException();
+           }
+       }
+
+       public ActionResult Next()
+       {
+           int startRowIndex = Convert.ToInt32(Session["startRowIndex"]) <= maximumRows ? 1 + maximumRows : Convert.ToInt32(Session["startRowIndex"]) + maximumRows;
+           Session["startRowIndex"] = startRowIndex;
+           return RedirectToAction("Index");
+       }
+
+       public ActionResult Previous()
+       {
+           int startRowIndex = Convert.ToInt32(Session["startRowIndex"]) <= maximumRows ? 1 : Convert.ToInt32(Session["startRowIndex"]) - maximumRows;
+           Session["startRowIndex"] = startRowIndex;
+           return RedirectToAction("Index");
+       }
+
+***Registration form with email confirmation***
+using System.Data;
+using System.Data.SqlClient;
+using System.Configuration;
+using System.Text;
+using System.Net;
+using System.Net.Mail;
+
+SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["conStr"].ConnectionString);
+    protected void btnSubmit_Click(object sender, EventArgs e)
+    {
+        MailMessage msg;     
+        SqlCommand cmd = new SqlCommand();
+        string ActivationUrl = string.Empty;
+        string emailId = string.Empty;
+        try
+        {
+            cmd = new SqlCommand("insert into Tb_Registration (Name,EmailId,Address,ContactNo) values (@Name,@EmailId,@Address,@ContactNo) ", con);
+            cmd.Parameters.AddWithValue("@Name", txtName.Text.Trim());
+            cmd.Parameters.AddWithValue("@EmailId", txtEmailId.Text.Trim());
+            cmd.Parameters.AddWithValue("@Address", txtAddress.Text.Trim());
+            cmd.Parameters.AddWithValue("@ContactNo", txtContactNo.Text.Trim());
+            if (con.State == ConnectionState.Closed)
+            {
+                con.Open();
+            }
+            cmd.ExecuteNonQuery();
+        //Sending activation link in the email
+            msg = new MailMessage();
+            SmtpClient smtp = new SmtpClient();
+            emailId = txtEmailId.Text.Trim();
+            //sender email address
+            msg.From = new MailAddress("YourGmailEmailId@gmail.com");          
+            //Receiver email address
+            msg.To.Add(emailId);
+            msg.Subject = "Confirmation email for account activation";
+            //For testing replace the local host path with your lost host path and while making online replace with your website domain name
+            ActivationUrl = Server.HtmlEncode("http://localhost:8665/MySampleApplication/ActivateAccount.aspx?UserID=" + FetchUserId(emailId) + "&EmailId=" + emailId);
+
+            msg.Body = "Hi " + txtName.Text.Trim() + "!\n" +
+                  "Thanks for showing interest and registring in <a href='http://www.webcodeexpert.com'> webcodeexpert.com<a> " +
+                  " Please <a href='" + ActivationUrl + "'>click here to activate</a>  your account and enjoy our services. \nThanks!";
+            msg.IsBodyHtml = true;
+            smtp.Credentials = new NetworkCredential("YourGmailEmailId@gmail.com", "YourGmailPassword");
+            smtp.Port = 587;
+            smtp.Host = "smtp.gmail.com";
+            smtp.EnableSsl = true;
+            smtp.Send(msg);
+            clear_controls();
+            ScriptManager.RegisterStartupScript(this, this.GetType(), "Message", "alert('Confirmation Link to activate your account has been sent to your email address');", true);
+        }
+        catch (Exception ex)
+        {
+            ScriptManager.RegisterStartupScript(this, this.GetType(), "Message", "alert('Error occured : " + ex.Message.ToString() + "');", true);
+            return;
+        }
+        finally
+        {
+            ActivationUrl = string.Empty;
+            emailId = string.Empty;
+            con.Close();
+            cmd.Dispose();
+        }
+    }  
+
+    private string FetchUserId(string emailId)
+    {
+        SqlCommand cmd = new SqlCommand();
+        cmd = new SqlCommand("SELECT UserId FROM Tb_Registration WHERE EmailId=@EmailId", con);
+            cmd.Parameters.AddWithValue("@EmailId", emailId);
+            if (con.State == ConnectionState.Closed)
+            {
+                con.Open();
+            }
+            string UserID = Convert.ToString(cmd.ExecuteScalar());
+            con.Close();
+            cmd.Dispose();
+            return UserID;
+        }
+
+    private void clear_controls()
+    {
+        txtName.Text = string.Empty;
+        txtEmailId.Text = string.Empty;
+        txtAddress.Text = string.Empty;
+        txtContactNo.Text = string.Empty;
+        txtName.Focus();
+    }
+
+Code for ActivateAccount.aspx page
+In the code behind file (ActivateAccount.aspx.cs) write the code as:
+using System.Data;
+using System.Data.SqlClient;
+using System.Configuration;
+
+protected void Page_Load(object sender, EventArgs e)
+    {
+        if (!Page.IsPostBack)
+        {
+            ActivateMyAccount();
+        }
+    }
+
+    private void ActivateMyAccount()
+    {
+        SqlConnection con = new SqlConnection();
+        SqlCommand cmd = new SqlCommand();
+        try
+        {
+            con = new SqlConnection(ConfigurationManager.ConnectionStrings["conStr"].ConnectionString);
+
+            if ((!string.IsNullOrEmpty(Request.QueryString["UserID"])) & (!string.IsNullOrEmpty(Request.QueryString["EmailId"])))
+            {   //approve account by setting Is_Approved to 1 i.e. True in the sql server table
+                cmd = new SqlCommand("UPDATE Tb_Registration SET Is_Approved=1 WHERE UserID=@UserID AND EmailId=@EmailId", con);
+                cmd.Parameters.AddWithValue("@UserID", Request.QueryString["UserID"]);
+                cmd.Parameters.AddWithValue("@EmailId", Request.QueryString["EmailId"]);
+                if (con.State == ConnectionState.Closed)
+                {
+                    con.Open();
+                }
+                cmd.ExecuteNonQuery();
+                Response.Write("You account has been activated. You can <a href='Login.aspx'>Login</a> now! ");
+            }
+        }
+        catch (Exception ex)
+        {
+            ScriptManager.RegisterStartupScript(this, this.GetType(), "Message", "alert('Error occured : " + ex.Message.ToString() + "');", true);
+            return;
+        }
+        finally
+        {
+            con.Close();
+            cmd.Dispose();
+        }
+    }
+
+Asp.Net VB Section:
+
+Source code of Registration.aspx
+Design the Registration.aspx page as in C#.Net section but replace the line 
+<asp:Button ID="btnSubmit" runat="server" Text="Submit" onclick="btnSubmit_Click" /> With <asp:Button ID="btnSubmit" runat="server" Text="Submit" />
+
+
+VB.Net Code for Registration.aspx page
+In the code behind file (Registration.aspx.vb) write the code as:
+Imports System.Data
+Imports System.Data.SqlClient
+Imports System.Configuration
+Imports System.Text
+Imports System.Net
+Imports System.Net.Mail
+
+Dim con As New SqlConnection(ConfigurationManager.ConnectionStrings("conStr").ConnectionString)
+
+    Protected Sub btnSubmit_Click(sender As Object, e As System.EventArgs) Handles btnSubmit.Click
+        Dim msg As MailMessage
+        Dim cmd As New SqlCommand()
+        Dim ActivationUrl As String = String.Empty
+        Dim emailId As String = String.Empty
+        Try
+            cmd = New SqlCommand("insert into Tb_Registration (Name,EmailId,Address,ContactNo) values (@Name,@EmailId,@Address,@ContactNo) ", con)
+            cmd.Parameters.AddWithValue("@Name", txtName.Text.Trim())
+            cmd.Parameters.AddWithValue("@EmailId", txtEmailId.Text.Trim())
+            cmd.Parameters.AddWithValue("@Address", txtAddress.Text.Trim())
+            cmd.Parameters.AddWithValue("@ContactNo", txtContactNo.Text.Trim())
+            If con.State = ConnectionState.Closed Then
+                con.Open()
+            End If
+            cmd.ExecuteNonQuery()
+
+           ‘Sending activation link in the email
+            msg = New MailMessage()
+            Dim smtp As New SmtpClient()
+            emailId = txtEmailId.Text.Trim()
+            'sender email address
+            msg.From = New MailAddress("YourGmailEmailId@gmail.com")
+            'Receiver email address
+            msg.[To].Add(emailId)
+            msg.Subject = "Confirmation email for account activation"
+            'For testing replace the local host path with your lost host path and while making online replace with your website domain name
+            ActivationUrl = Server.HtmlEncode("http://localhost:8665/MySampleApplication/ActivateAccount.aspx?UserID=" & FetchUserId(emailId) & "&EmailId=" & emailId)
+
+            msg.Body = "Hi " & txtName.Text.Trim() & "!" & vbLf & "Thanks for showing interest and registring in <a href='http://www.webcodeexpert.com'> webcodeexpert.com<a> " & " Please <a href='" & ActivationUrl & "'>click here to activate</a>  your account and enjoy our services. " & vbLf & "Thanks!"
+            msg.IsBodyHtml = True
+            smtp.Credentials = New NetworkCredential("YourGmailEmailId@gmail.com", "YourGmailPassword")
+            smtp.Port = 587
+            smtp.Host = "smtp.gmail.com"
+            smtp.EnableSsl = True
+            smtp.Send(msg)
+            clear_controls()
+            ScriptManager.RegisterStartupScript(Me, Me.[GetType](), "Message", "alert('Confirmation Link to activate account has been sent  to your email address');", True)
+        Catch ex As Exception
+            ScriptManager.RegisterStartupScript(Me, Me.[GetType](), "Message", "alert('Error occured : " & ex.Message.ToString() & "');", True)
+            Return
+        Finally
+            ActivationUrl = String.Empty
+            emailId = String.Empty
+            con.Close()
+            cmd.Dispose()
+        End Try
+    End Sub
+
+    Private Function FetchUserId(emailId As String) As String
+        Dim cmd As New SqlCommand()
+        cmd = New SqlCommand("SELECT UserId FROM Tb_Registration WHERE EmailId=@EmailId", con)
+        cmd.Parameters.AddWithValue("@EmailId", emailId)
+        If con.State = ConnectionState.Closed Then
+            con.Open()
+        End If
+        Dim UserID As String = Convert.ToString(cmd.ExecuteScalar())
+        con.Close()
+        cmd.Dispose()
+        Return UserID
+    End Function
+
+    Private Sub clear_controls()
+        txtName.Text = String.Empty
+        txtEmailId.Text = String.Empty
+        txtAddress.Text = String.Empty
+        txtContactNo.Text = String.Empty
+        txtName.Focus()
+    End Sub
+
+Add a new page “ActivateAccount.aspx”. 
+This page will be opened when new registered user click on the activate account link in his email. On the page load it will check email id and user id from the query string and then update the "Is_Approved" column to 1 i.e. True. Then you can redirect him to your login page to log in.
+In the code behind file (ActivateAccount.aspx.vb) and write the code on the page load event as:
+
+Imports System.Data
+Imports System.Data.SqlClient
+Imports System.Configuration
+
+Protected Sub Page_Load(sender As Object, e As System.EventArgs) Handles Me.Load
+        If Not Page.IsPostBack Then
+            ActivateMyAccount()
+        End If
+    End Sub
+
+    Private Sub ActivateMyAccount()
+        Dim con As New SqlConnection()
+        Dim cmd As New SqlCommand()
+        Try
+            con = New SqlConnection(ConfigurationManager.ConnectionStrings("conStr").ConnectionString)
+
+            If (Not String.IsNullOrEmpty(Request.QueryString("UserID"))) And (Not String.IsNullOrEmpty(Request.QueryString("EmailId"))) Then
+                'approve account by setting Is_Approved to 1 i.e. True in the sql server table
+                cmd = New SqlCommand("UPDATE Tb_Registration SET Is_Approved=1 WHERE UserID=@UserID AND EmailId=@EmailId", con)
+                cmd.Parameters.AddWithValue("@UserID", Request.QueryString("UserID"))
+                cmd.Parameters.AddWithValue("@EmailId", Request.QueryString("EmailId"))
+                If con.State = ConnectionState.Closed Then
+                    con.Open()
+                End If
+                cmd.ExecuteNonQuery()
+                Response.Write("You account has been activated. You can <a href='Login.aspx'>Login</a> now! ")
+            End If
+        Catch ex As Exception
+            ScriptManager.RegisterStartupScript(Me, Me.[GetType](), "Message", "alert('Error occured : " & ex.Message.ToString() & "');", True)
+            Return
+        Finally
+            con.Close()
+            cmd.Dispose()
+        End Try
+***Verify if the user exist or not***
+public bool VerifyUserAndUpdate(string id)
+{
+bool userExists;
+ 
+using (SqlCommand cmd = new SqlCommand("VerifyUser"))
+        {
+            using (SqlDataAdapter sda = new SqlDataAdapter())
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@UserId",id );
+ 
+                SqlParameter resultParam= new SqlParameter("@result", System.Data.SqlDbType.Int);
+                OutputParam.Direction = ParameterDirection.Output;
+                cmd.Parameters.Add(resultParam);
+ 
+                cmd.Connection = con;
+                con.Open();
+                userId = Convert.ToInt32(cmd.ExecuteScalar());
+                con.Close();
+            }
+        }
+ 
+int.TryParse(resultParam.Value.ToString(),out returnValue);
+if(returnValue==1)
+ userExists=true;
+else
+ userExists=false;
+ 
+return userExists;
+}
+****Create the link by using the activation code:***
+SendMail(){
+int SendStatus = 0;
+try
+{
+MailAddress fromAddress = new MailAddress(from, fromDisplayName);//red from config
+var toAddress = new MailAddress(MailTo, "");
+string fromPassword = mailPassword;//read from config
+string subject = MailSubject;
+string body = MailBody;
+ 
+var message = new MailMessage(fromAddress, toAddress);
+message.Subject = subject;
+string link = HttpContext.Request.Url.GetLeftPart(UriPartial.Authority) + "/Authentication/Verify/id="+uniqueId ;
+message.Body = string.Format("{0} {1} {2} {3}", "Click the following link to activate your account", link, System.Environment.NewLine, "admin");
+message.IsBodyHtml = true;
+smtp.Send(message);
+SendStatus = 1;
+return SendStatus;
+}
+catch(Exception exp)
+{
+return SendStatus;
+}
+ 
+}
+***when using data adapter in windows form***
+ int UserId = 0;
+                string Message = string.Empty;
+                switch (UserId)
+                {
+                    case -1:Message = "User name already exists";
+                        break;
+                    case -2:
+                        Message = "Email address already exists";
+                        break;
+                    default : Message = "you successful registrated";
+                        break;
+                }
+                ClientScript.RegisterStartupScript(GetType(), "alert", "alert('" + Message + "')");
